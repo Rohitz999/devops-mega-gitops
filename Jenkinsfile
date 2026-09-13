@@ -1,4 +1,3 @@
-cat > Jenkinsfile << 'JENKINSEOF'
 pipeline {
     agent any
 
@@ -83,4 +82,3 @@ pipeline {
         }
     }
 }
-JENKINSEOF
