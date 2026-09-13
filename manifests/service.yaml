@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: devops-mega-app-svc
+  labels:
+    app: devops-mega-app
+spec:
+  type: ClusterIP
+  selector:
+    app: devops-mega-app
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
