@@ -10,9 +10,9 @@ pipeline {
     }
 
     environment {
-        GITOPS_REPO = "github.com/Rohitz999/devops-mega-gitops.git"
-        APP_NAME    = "devops-mega-app"
-        DOCKER_HUB  = "rohitdockerhub01"
+        GITOPS_REPO_URL = "https://github.com/Rohitz999/devops-mega-gitops.git"
+        APP_NAME        = "devops-mega-app"
+        DOCKER_HUB      = "rohitdockerhub01"
     }
 
     options {
@@ -29,10 +29,11 @@ pipeline {
                     usernameVariable: 'GIT_USER',
                     passwordVariable: 'GIT_TOKEN'
                 )]) {
-                    sh """
+                    sh '''
                         rm -rf gitops-tmp
-                        git clone https://\${GIT_USER}:\${GIT_TOKEN}@${GITOPS_REPO} gitops-tmp
-                    """
+                        git -c credential.helper='!f() { echo "username=$GIT_USER"; echo "password=$GIT_TOKEN"; }; f' \
+                            clone ${GITOPS_REPO_URL} gitops-tmp
+                    '''
                 }
             }
         }
@@ -57,14 +58,15 @@ pipeline {
                     usernameVariable: 'GIT_USER',
                     passwordVariable: 'GIT_TOKEN'
                 )]) {
-                    sh """
+                    sh '''
                         cd gitops-tmp
                         git config user.email "jenkins@mechnomax.co.in"
                         git config user.name "Jenkins CI"
                         git add manifests/deployment.yaml
-                        git diff --staged --quiet || git commit -m "Update ${APP_NAME} image to ${IMAGE_TAG}"
-                        git push origin main || echo "Nothing to push"
-                    """
+                        git diff --staged --quiet || git commit -m "Update image to ${IMAGE_TAG}"
+                        git -c credential.helper='!f() { echo "username=$GIT_USER"; echo "password=$GIT_TOKEN"; }; f' \
+                            push origin main
+                    '''
                 }
             }
         }
@@ -73,6 +75,7 @@ pipeline {
     post {
         success {
             echo "✅ GitOps updated: ${APP_NAME} → ${IMAGE_TAG}"
+            echo "🔗 ArgoCD will sync the change to K3s shortly"
         }
         failure {
             echo "❌ GitOps update failed"
