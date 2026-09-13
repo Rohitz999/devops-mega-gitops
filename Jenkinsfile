@@ -1,8 +1,13 @@
+cat > Jenkinsfile << 'JENKINSEOF'
 pipeline {
     agent any
 
     parameters {
-        string(name: 'IMAGE_TAG', defaultValue: 'latest', description: 'New image tag')
+        string(
+            name: 'IMAGE_TAG',
+            defaultValue: 'latest',
+            description: 'Docker image tag to deploy'
+        )
     }
 
     environment {
@@ -69,7 +74,6 @@ pipeline {
     post {
         success {
             echo "✅ GitOps updated: ${APP_NAME} → ${IMAGE_TAG}"
-            echo "🔗 ArgoCD will sync shortly"
         }
         failure {
             echo "❌ GitOps update failed"
@@ -79,3 +83,4 @@ pipeline {
         }
     }
 }
+JENKINSEOF
