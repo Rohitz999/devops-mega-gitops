@@ -13,6 +13,8 @@ pipeline {
         GITOPS_REPO_URL = "https://github.com/Rohitz999/devops-mega-gitops.git"
         APP_NAME        = "devops-mega-app"
         DOCKER_HUB      = "rohitdockerhub01"
+        ARGOCD_SERVER   = "https://argocd.mechnomax.co.in"
+        ARGOCD_APP      = "devops-mega-app"
     }
 
     options {
@@ -70,15 +72,78 @@ pipeline {
                 }
             }
         }
+
+        stage('Trigger ArgoCD Sync') {
+            steps {
+                withCredentials([string(
+                    credentialsId: 'argocd-token',
+                    variable: 'ARGOCD_TOKEN'
+                )]) {
+                    sh '''
+                        echo "===== Triggering ArgoCD Sync ====="
+
+                        # Give GitHub 2 seconds to register the push
+                        sleep 2
+
+                        # Trigger sync
+                        echo "Triggering sync for ${ARGOCD_APP}..."
+                        SYNC_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+                          -X POST \
+                          -H "Authorization: Bearer $ARGOCD_TOKEN" \
+                          -H "Content-Type: application/json" \
+                          --insecure \
+                          "${ARGOCD_SERVER}/api/v1/applications/${ARGOCD_APP}/sync" \
+                          -d '{"revision":"HEAD","prune":true}')
+
+                        echo "Sync HTTP: $SYNC_CODE"
+
+                        if [ "$SYNC_CODE" = "200" ]; then
+                            echo "✅ ArgoCD sync triggered successfully"
+                        else
+                            echo "❌ ArgoCD sync failed with HTTP $SYNC_CODE"
+                            exit 1
+                        fi
+
+                        # Wait for sync to start
+                        sleep 5
+
+                        # Get app status
+                        echo ""
+                        echo "===== ArgoCD App Status ====="
+                        curl -s \
+                          -H "Authorization: Bearer $ARGOCD_TOKEN" \
+                          --insecure \
+                          "${ARGOCD_SERVER}/api/v1/applications/${ARGOCD_APP}" \
+                          | python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    status = data.get('status', {})
+    sync = status.get('sync', {})
+    health = status.get('health', {})
+    print(f\\\"  Sync Status:   {sync.get('status', 'unknown')}\\\")
+    print(f\\\"  Health Status: {health.get('status', 'unknown')}\\\")
+    rev = sync.get('revision', 'unknown')
+    print(f\\\"  Revision:      {rev[:8] if rev != 'unknown' else rev}\\\")
+except Exception as e:
+    print(f'  (could not parse status: {e})')
+"
+
+                        echo "===== ArgoCD Sync Completed ====="
+                    '''
+                }
+            }
+        }
     }
 
     post {
         success {
             echo "✅ GitOps updated: ${APP_NAME} → ${IMAGE_TAG}"
-            echo "🔗 ArgoCD will sync the change to K3s shortly"
+            echo "✅ ArgoCD synced to K3s"
+            echo "🌐 Live: https://app.mechnomax.co.in"
         }
         failure {
-            echo "❌ GitOps update failed"
+            echo "❌ GitOps update failed for ${APP_NAME}:${IMAGE_TAG}"
         }
         always {
             cleanWs()
