@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: devops-mega-app
-          image: rohitdockerhub01/devops-mega-app:1.0.0-18
+          image: rohitdockerhub01/devops-mega-app:1.0.0-19
           imagePullPolicy: Always
           ports:
             - name: http
